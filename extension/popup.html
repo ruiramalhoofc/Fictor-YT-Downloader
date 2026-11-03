@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Download</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div id="empty" class="empty" hidden>
+    <p><b>No YouTube video here</b></p>
+    <p>Open a YouTube video, then click the extension icon again.</p>
+  </div>
+
+  <div id="app" hidden>
+    <div class="title">Download</div>
+    <div class="tabs">
+      <button class="tab on" data-tab="video">Video</button>
+      <button class="tab" data-tab="audio">Audio</button>
+      <button class="tab" data-tab="thumbnail">Thumbnail</button>
+      <button class="tab" data-tab="subtitles">Subtitles</button>
+    </div>
+
+    <div class="pane" data-pane="video">
+      <label>Quality<select id="v-q"></select></label>
+      <label>Format<select id="v-f"></select></label>
+      <button class="dl" data-dl="video">Download</button>
+    </div>
+    <div class="pane" data-pane="audio" hidden>
+      <label>Format<select id="a-f"></select></label>
+      <label>Quality<select id="a-q"></select></label>
+      <button class="dl" data-dl="audio">Download</button>
+    </div>
+    <div class="pane" data-pane="thumbnail" hidden>
+      <img class="thumb" alt="">
+      <button class="dl" data-dl="thumbnail">Download</button>
+    </div>
+    <div class="pane" data-pane="subtitles" hidden>
+      <label>Language<select id="s-l"></select></label>
+      <label>File format<select id="s-f"></select></label>
+      <button class="dl" data-dl="subtitles">Download</button>
+    </div>
+
+    <div class="bar" hidden><i></i></div>
+    <div class="msg" hidden></div>
+    <button class="retry" hidden>Retry</button>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

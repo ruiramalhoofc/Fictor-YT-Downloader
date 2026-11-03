@@ -1,54 +1,62 @@
 # Fictor YT Downloader (yt-dlp)
 
-Extensão para Chrome / Edge / Brave / Opera que adiciona um botão **Download** ao YouTube (à esquerda do Like) com 4 abas: **Video**, **Audio**, **Thumbnail** e **Subtitles**. Os downloads são feitos pelo **yt-dlp**, que corre num pequeno servidor Python local.
+Extensão para Chrome / Edge / Brave / Opera. Ao clicar no **ícone da extensão**, num vídeo do YouTube, abre um menu **Download** com 4 abas: **Video**, **Audio**, **Thumbnail** e **Subtitles**. Os downloads são feitos pelo **yt-dlp**, que corre num pequeno servidor Python local.
 
 ```
-YouTube (content.js) → background.js → http://127.0.0.1:9614 (Flask + yt-dlp)
-                                                ↓ ficheiro pronto
-                                  chrome.downloads → pasta de downloads do browser
+Ícone da extensão → popup.html/popup.js ─┐
+                                         ├→ background.js → http://127.0.0.1:9614 (Flask + yt-dlp)
+              (progresso e ficheiro) ←───┘                          ↓ ficheiro pronto
+                                          chrome.downloads → pasta de downloads do browser
 ```
 
 ## 1. Servidor local
 
-Requisitos: **Python 3.9+** e **ffmpeg** no PATH (necessário para juntar vídeo+áudio em resoluções altas, converter para MP3 e para SRT/ASS). Nas versões recentes, o yt-dlp também precisa de um runtime JavaScript para o YouTube — instala o [Deno](https://deno.com).
+Requisitos: **Python 3.9+**. O **ffmpeg** é instalado automaticamente (pacote `imageio-ffmpeg`) se não existir no PATH, e o **Deno** é recomendado (o yt-dlp precisa de um runtime JavaScript para o YouTube; sem ele podem faltar formatos).
 
-- **Windows:** duplo clique em `server/install_and_run.bat`
-- **Linux / macOS:** `sh server/install_and_run.sh`
+- `server/install_and_update.bat` / `.sh` — instala/atualiza as dependências Python (incluindo o yt-dlp) e o Deno.
+- `server/run_server.bat` / `.sh` — arranca o servidor em `http://127.0.0.1:9614`. Deixa a janela aberta enquanto usas a extensão.
 
-O script cria um ambiente virtual, instala/atualiza as dependências (incluindo o yt-dlp) e arranca o servidor em `http://127.0.0.1:9614`. Deixa a janela aberta enquanto usas a extensão. Podes confirmar em `http://127.0.0.1:9614/health`.
+**Diagnóstico:** abre `http://127.0.0.1:9614/health` — deve mostrar `"ffmpeg": true` e `"deno": true`. Se algum for `false`, é a causa mais provável de resoluções em falta ou de erros do tipo *"Requested format is not available"*.
 
 ## 2. Extensão
 
 1. Abre `chrome://extensions` e ativa o **Modo de programador**.
-2. Clica em **Carregar sem pacote** e escolhe a pasta `extension/`.
-3. Abre um vídeo no YouTube: o botão **Download** aparece junto aos botões Like/Share.
+2. Clica em **Carregar sem pacote** e escolhe a pasta `extension/`. (Se já a tinhas carregada, carrega em **Atualizar** ↻ — o botão que estava integrado no YouTube desaparece.)
+3. Fixa o ícone na barra (menu de extensões ▸ 📌), abre um vídeo no YouTube e clica no ícone.
+
+O popup funciona em `youtube.com/watch`, `youtube.com/shorts` e `youtu.be`. Noutras páginas mostra um aviso.
 
 ## Utilização
 
-- **Video:** escolhe a resolução (ou *Best available*) → Download (MP4).
-- **Audio:** *Best (original stream)* ou MP3 a 320 … 64 kbps.
+- **Video:** resolução (ou *Best available*) + formato **MP4** (máxima compatibilidade), **MKV** (melhor qualidade, qualquer codec) ou **WEBM**. Em 1440p/4K o YouTube só oferece VP9/AV1, por isso o MP4 resultante pode não abrir em leitores antigos — usa MKV.
+- **Audio:** formato **Original** (sem conversão), **MP3**, **M4A**, **Opus**, **FLAC** ou **WAV**; nos formatos com perdas escolhes o bitrate (320 … 64 kbps).
 - **Thumbnail:** descarrega a miniatura em máxima resolução.
-- **Subtitles:** escolhe idioma (legendas manuais ou automáticas) e formato (SRT, VTT, ASS, TTML, JSON3).
+- **Subtitles:** três grupos — manuais, geradas automaticamente (idioma original) e traduzidas automaticamente — e formato SRT, VTT, ASS, TTML ou JSON3.
 
-O servidor guarda o ficheiro numa pasta temporária, a extensão entrega-o ao gestor de downloads do browser e os temporários são apagados ao fim de 15 minutos.
+**O popup fecha sempre que clicas fora dele — não faz mal.** O download continua em segundo plano e o ficheiro vai para a pasta de downloads do browser quando terminar. Enquanto decorre, o ícone mostra a percentagem (`42%`); se falhar, mostra `!` e a mensagem aparece ao reabrires o popup no mesmo vídeo.
 
-## Configuração
+### Sobre o erro 429 nas legendas
 
-| O quê | Como |
+O YouTube bloqueia (HTTP 429) os pedidos de legendas **traduzidas automaticamente** (o grupo "Auto-translated"). As legendas manuais e as automáticas no idioma original não são afetadas. Se uma legenda normal falhar com 429, espera alguns minutos ou usa `YTDLP_COOKIES_BROWSER`.
+
+## Configuração (variáveis de ambiente do servidor)
+
+| Variável | Para quê |
 |---|---|
-| Mudar a porta | variável `YTDLP_PORT` + `SERVER` em `extension/background.js` + `host_permissions` em `extension/manifest.json` |
-| Vídeos com restrição de idade / "confirm you're not a bot" | variável `YTDLP_COOKIES_BROWSER=chrome` (ou `firefox`, `edge`…) antes de arrancar o servidor |
+| `YTDLP_PORT` | Mudar a porta (altera também `SERVER` em `extension/background.js` e `host_permissions` em `manifest.json`) |
+| `YTDLP_COOKIES_BROWSER` | `chrome`, `firefox`, `edge`… — usa os cookies desse browser (idade restrita, "confirm you're not a bot", 429) |
+| `FFMPEG_LOCATION` | Pasta (ou caminho) do teu ffmpeg |
 
 ## Problemas comuns
 
 - **"Can't reach the local server"** — o servidor não está a correr; arranca-o e carrega em *Retry*.
-- **Erros de extração / formatos em falta** — o YouTube muda com frequência; reinicia o script (atualiza o yt-dlp) e confirma que tens Deno e ffmpeg instalados.
-- **Só aparecem resoluções baixas e não há MP3/SRT** — falta o ffmpeg.
+- **Faltam resoluções / "Requested format is not available"** — vê `/health`; instala o Deno e atualiza o yt-dlp.
+- **"No YouTube video here"** — o separador ativo não é um vídeo; abre um vídeo e clica no ícone outra vez.
 - **Firefox** — não suportado tal como está (usa service worker MV3 e `chrome.*`).
 
 ## Segurança
 
-O servidor só ouve em `127.0.0.1`, rejeita pedidos com `Host` diferente de localhost e pedidos cuja origem não seja uma extensão, e só aceita URLs do YouTube.
+O servidor só ouve em `127.0.0.1`, rejeita pedidos com `Host` diferente de localhost e pedidos cuja origem não seja uma extensão, e só aceita URLs do YouTube. A extensão já não injeta nada nas páginas do YouTube: só lê o URL do separador ativo quando clicas no ícone (permissão `activeTab`).
 
 ## Aviso
 
